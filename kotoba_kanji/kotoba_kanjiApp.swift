@@ -79,41 +79,17 @@ struct SplashView: View {
 struct kotoba_kanjiApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            JapanesePhrase.self,
+            Kanji.self,
+            KanjiExample.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
             let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
             
-            // 초기 데이터 추가 - 365개 카드 강제 업데이트
+            // Load initial kanji data
             let context = container.mainContext
-            let descriptor = FetchDescriptor<JapanesePhrase>()
-            
-            if let existingPhrases = try? context.fetch(descriptor) {
-                if existingPhrases.isEmpty {
-                    // 데이터가 없을 때만 초기 데이터 생성
-                    // Creating initial data
-                    let initialPhrases = JapanesePhrase.createInitialData()
-                    for phrase in initialPhrases {
-                        context.insert(phrase)
-                    }
-                    try? context.save()
-                    // Initial data created
-                } else {
-                    // 기존 데이터가 있으면 유지 (즐겨찾기 보존)
-                    // Existing data loaded
-                }
-            } else {
-                // 데이터 로드 실패 시 초기 데이터 생성
-                // Data load failed, creating initial data
-                let initialPhrases = JapanesePhrase.createInitialData()
-                for phrase in initialPhrases {
-                    context.insert(phrase)
-                }
-                try? context.save()
-                // Initial data created
-            }
+            KanjiManager.shared.loadInitialKanjiData(modelContext: context)
             
             return container
         } catch {

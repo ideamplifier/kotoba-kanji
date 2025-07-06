@@ -5,31 +5,41 @@ import SwiftData
 struct SearchView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
-    @Query private var phrases: [JapanesePhrase]
+    @Query private var kanjiList: [Kanji]
+    @Query private var examples: [KanjiExample]
     @State private var searchText = ""
-    @State private var currentIndex = 0
-    @State private var selectedPhrase: JapanesePhrase?
+    @State private var selectedKanji: Kanji?
     @State private var showingCard = false
     
-    var filteredPhrases: [JapanesePhrase] {
+    var filteredKanji: [Kanji] {
         if searchText.isEmpty {
-            return phrases.sorted { $0.id < $1.id }
+            return kanjiList.sorted { $0.id < $1.id }
         } else {
-            // Check if search text is a number (card number search)
-            if let cardNumber = Int(searchText.trimmingCharacters(in: .whitespaces)), 
-               cardNumber >= 1 && cardNumber <= 365 {
-                return phrases.filter { phrase in
-                    phrase.id == cardNumber
+            // Check if search text is a number (kanji ID search)
+            if let kanjiId = Int(searchText.trimmingCharacters(in: .whitespaces)) {
+                return kanjiList.filter { kanji in
+                    kanji.id == kanjiId
                 }.sorted { $0.id < $1.id }
             }
             
             // Regular text search
-            return phrases.filter { phrase in
-                phrase.japaneseSentence.localizedCaseInsensitiveContains(searchText) ||
-                phrase.koreanSentence.localizedCaseInsensitiveContains(searchText) ||
-                phrase.hiragana.localizedCaseInsensitiveContains(searchText) ||
-                phrase.romaji.localizedCaseInsensitiveContains(searchText) ||
-                phrase.grammar.localizedCaseInsensitiveContains(searchText)
+            return kanjiList.filter { kanji in
+                // Search in kanji character
+                kanji.character.localizedCaseInsensitiveContains(searchText) ||
+                // Search in meanings
+                kanji.meanings.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
+                // Search in onyomi
+                kanji.onyomi.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
+                // Search in kunyomi
+                kanji.kunyomi.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
+                // Search in bushu
+                kanji.bushu.localizedCaseInsensitiveContains(searchText) ||
+                kanji.bushuMeaning.localizedCaseInsensitiveContains(searchText) ||
+                // Search in example sentences
+                examples.filter { $0.kanjiId == kanji.id }.contains { example in
+                    example.japanese.localizedCaseInsensitiveContains(searchText) ||
+                    example.korean.localizedCaseInsensitiveContains(searchText)
+                }
             }.sorted { $0.id < $1.id }
         }
     }
@@ -39,7 +49,7 @@ struct SearchView: View {
             VStack(spacing: 0) {
                 // Content
                 if searchText.isEmpty {
-                    // Empty state with tags
+                    // Empty state with quick search tags
                     VStack(spacing: 16) {
                         Spacer()
                         
@@ -51,19 +61,22 @@ struct SearchView: View {
                             .accessibilityLabel("검색 대기 이미지")
                             .padding(.top, 200)
                         
-                        
                         // Quick Search Tags
                         VStack(spacing: 12) {
+                            Text("빠른 검색")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                            
                             VStack(spacing: 8) {
                                 HStack(spacing: 8) {
-                                    TagButton(title: "인사", searchText: $searchText)
-                                    TagButton(title: "감사", searchText: $searchText)
-                                    TagButton(title: "질문", searchText: $searchText)
+                                    TagButton(title: "날", searchText: $searchText)
+                                    TagButton(title: "사람", searchText: $searchText)
+                                    TagButton(title: "큰", searchText: $searchText)
                                 }
                                 HStack(spacing: 8) {
-                                    TagButton(title: "음식", searchText: $searchText)
-                                    TagButton(title: "날씨", searchText: $searchText)
-                                    TagButton(title: "교통", searchText: $searchText)
+                                    TagButton(title: "위", searchText: $searchText)
+                                    TagButton(title: "아래", searchText: $searchText)
+                                    TagButton(title: "앞", searchText: $searchText)
                                 }
                             }
                         }
@@ -71,7 +84,7 @@ struct SearchView: View {
                         
                         Spacer()
                     }
-                } else if filteredPhrases.isEmpty {
+                } else if filteredKanji.isEmpty {
                     // No results
                     VStack(spacing: 16) {
                         Spacer()
@@ -96,135 +109,139 @@ struct SearchView: View {
                     VStack(spacing: 0) {
                         // Search Results Counter
                         HStack {
-                            Text("\(filteredPhrases.count)개의 검색 결과")
+                            Text("\(filteredKanji.count)개의 검색 결과")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
                             Spacer()
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 20)
-                        .padding(.bottom, 10)
+                        .padding(.vertical, 8)
                         
-                        // Search Results List
+                        // Results List
                         ScrollView {
-                            VStack(spacing: 8) {
-                                ForEach(Array(filteredPhrases.enumerated()), id: \.offset) { index, phrase in
-                                    SearchResultRowView(phrase: phrase) {
-                                        selectedPhrase = phrase
+                            LazyVStack(spacing: 10) {
+                                ForEach(filteredKanji, id: \.id) { kanji in
+                                    SearchResultRow(kanji: kanji) {
+                                        selectedKanji = kanji
+                                        showingCard = true
                                     }
                                     .padding(.horizontal, 16)
                                 }
                             }
-                            .padding(.top, 5)
-                            .padding(.bottom, 20)
+                            .padding(.vertical, 10)
                         }
                     }
                 }
-                
-                // Search Bar at bottom
-                HStack {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                            .accessibilityHidden(true)
-                        
-                        TextField("일본어, 한국어, 로마자 검색", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                            .accessibilityLabel("검색 입력 필드")
-                            .accessibilityHint("일본어, 한국어, 로마자 또는 카드 번호로 검색할 수 있습니다")
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(StyleConstants.Colors.adaptiveButtonBackground(colorScheme))
-                    .cornerRadius(12)
-                    
-                    if !searchText.isEmpty {
-                        Button("취소") {
-                            searchText = ""
-                            hideKeyboard()
-                        }
-                        .font(StyleConstants.Typography.koreanDynamic(.body))
-                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                        .accessibilityLabel("검색 취소")
-                        .accessibilityHint("검색어를 지우고 키보드를 닫습니다")
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 50)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "한자, 의미, 음독, 훈독 검색"
+            )
+            .accessibilityLabel("검색 화면")
         }
-        .sheet(item: $selectedPhrase) { phrase in
-            VStack {
-                CardView(phrase: phrase, isInModal: true)
-                Spacer()
+        .sheet(isPresented: $showingCard) {
+            if let kanji = selectedKanji {
+                KanjiDetailModalView(kanji: kanji)
             }
-            .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
         }
         .onAppear {
-            if !searchText.isEmpty {
-                searchText = ""
-            }
-            currentIndex = 0
             TTSManager.shared.stop()
         }
     }
-    
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
 }
 
-// MARK: - Search Result Row View
-struct SearchResultRowView: View {
-    let phrase: JapanesePhrase
+// MARK: - Search Result Row
+struct SearchResultRow: View {
+    let kanji: Kanji
     let onTap: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Card Number
-                Text("\(phrase.id)")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
-                    .clipShape(Circle())
+                // Kanji Character
+                Text(kanji.character)
+                    .font(.system(size: 36, weight: .regular))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                    .frame(width: 50, height: 50)
+                    .background(StyleConstants.Colors.adaptiveButtonBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .accessibilityLabel("한자 \(kanji.character)")
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    // Japanese Text
-                    Text(phrase.japaneseSentence)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color.naturalTextColor.opacity(0.9))
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
+                    // Meanings
+                    Text(kanji.meanings.joined(separator: ", "))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                        .lineLimit(1)
+                        .accessibilityLabel("의미: \(kanji.meanings.joined(separator: ", "))")
                     
-                    // Korean Text
-                    Text(phrase.koreanSentence)
-                        .font(.system(size: 13))
-                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
+                    // Readings
+                    HStack(spacing: 8) {
+                        if !kanji.onyomi.isEmpty {
+                            Text(kanji.onyomi.first ?? "")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                                .lineLimit(1)
+                        }
+                        
+                        if !kanji.kunyomi.isEmpty {
+                            Text(kanji.kunyomi.first ?? "")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.purple)
+                                .lineLimit(1)
+                        }
+                    }
+                    .accessibilityLabel("읽기: 음독 \(kanji.onyomi.joined(separator: ", ")), 훈독 \(kanji.kunyomi.joined(separator: ", "))")
                 }
                 
                 Spacer()
                 
                 // Arrow
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
+                    .font(.system(size: 14))
                     .foregroundColor(StyleConstants.Colors.adaptiveTextTertiary(colorScheme))
+                    .accessibilityHidden(true)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
+            .padding(12)
             .background(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .shadow(color: StyleConstants.Colors.adaptiveShadow(colorScheme), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(PlainButtonStyle())
     }
-} 
+}
+
+// MARK: - Kanji Detail Modal View
+struct KanjiDetailModalView: View {
+    let kanji: Kanji
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                KanjiCardView(kanji: kanji)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("닫기") {
+                        dismiss()
+                    }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                }
+            }
+        }
+    }
+}

@@ -5,19 +5,19 @@ import SwiftData
 struct FavoritesView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
-    @Query(filter: #Predicate<JapanesePhrase> { phrase in
-        phrase.isFavorite == true
-    }) private var favoritePhrases: [JapanesePhrase]
-    @State private var selectedPhrase: JapanesePhrase?
+    @Query(filter: #Predicate<Kanji> { kanji in
+        kanji.isFavorite == true
+    }) private var favoriteKanji: [Kanji]
+    @State private var selectedKanji: Kanji?
     
-    private var sortedFavoritePhrases: [JapanesePhrase] {
-        favoritePhrases.sorted { $0.id < $1.id }
+    private var sortedFavoriteKanji: [Kanji] {
+        favoriteKanji.sorted { $0.id < $1.id }
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if sortedFavoritePhrases.isEmpty {
+                if sortedFavoriteKanji.isEmpty {
                     // Empty Favorites State
                     VStack(spacing: 16) {
                         Spacer()
@@ -41,9 +41,9 @@ struct FavoritesView: View {
                     // Favorites List View
                     ScrollView {
                         VStack(spacing: 5) {
-                            ForEach(sortedFavoritePhrases.reversed(), id: \.id) { phrase in
-                                FavoriteRowView(phrase: phrase) {
-                                    selectedPhrase = phrase
+                            ForEach(sortedFavoriteKanji, id: \.id) { kanji in
+                                FavoriteKanjiRowView(kanji: kanji) {
+                                    selectedKanji = kanji
                                 }
                                 .padding(.horizontal, 16)
                             }
@@ -56,23 +56,22 @@ struct FavoritesView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
         }
-        .sheet(item: $selectedPhrase) { phrase in
-            FavoriteCardDetailView(
-                phrase: phrase,
-                allFavorites: sortedFavoritePhrases,
+        .sheet(item: $selectedKanji) { kanji in
+            FavoriteKanjiDetailView(
+                kanji: kanji,
+                allFavorites: sortedFavoriteKanji,
                 isPresented: .constant(true)
             )
         }
         .onAppear {
             TTSManager.shared.stop()
-            // Favorites loaded
         }
     }
 }
 
-// MARK: - Favorite Row View
-struct FavoriteRowView: View {
-    let phrase: JapanesePhrase
+// MARK: - Favorite Kanji Row View
+struct FavoriteKanjiRowView: View {
+    let kanji: Kanji
     let onTap: () -> Void
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -80,37 +79,40 @@ struct FavoriteRowView: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Card Number
-                Text("\(phrase.id)")
-                    .font(StyleConstants.Typography.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
+                // Kanji Character
+                Text(kanji.character)
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
                     .frame(width: 44, height: 44)
-                    .background(Color.gray.opacity(0.8))
-                    .clipShape(Circle())
-                    .accessibilityLabel("카드 번호 \(phrase.id)")
+                    .background(StyleConstants.Colors.adaptiveButtonBackground(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityLabel("한자 \(kanji.character)")
                 
                 VStack(alignment: .leading, spacing: 3) {
-                    // Japanese Text
-                    Text(phrase.japaneseSentence)
+                    // Meanings
+                    Text(kanji.meanings.joined(separator: ", "))
                         .font(StyleConstants.Typography.callout.weight(.medium))
                         .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
                         .multilineTextAlignment(.leading)
-                        .accessibilityLabel("일본어: \(phrase.japaneseSentence)")
+                        .accessibilityLabel("의미: \(kanji.meanings.joined(separator: ", "))")
                     
-                    // Korean Pronunciation
-                    Text(phrase.koreanPronunciation)
-                        .font(StyleConstants.Typography.koreanDynamic(.caption2))
-                        .foregroundColor(.orange)
-                        .multilineTextAlignment(.leading)
-                        .accessibilityLabel("한국어 발음: \(phrase.koreanPronunciation)")
+                    // Onyomi
+                    if !kanji.onyomi.isEmpty {
+                        Text("음독: \(kanji.onyomi.joined(separator: ", "))")
+                            .font(StyleConstants.Typography.koreanDynamic(.caption2))
+                            .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                            .multilineTextAlignment(.leading)
+                            .accessibilityLabel("음독: \(kanji.onyomi.joined(separator: ", "))")
+                    }
                     
-                    // Korean Text
-                    Text(phrase.koreanSentence)
-                        .font(StyleConstants.Typography.koreanDynamic(.footnote))
-                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        .multilineTextAlignment(.leading)
-                        .accessibilityLabel("한국어 번역: \(phrase.koreanSentence)")
+                    // Kunyomi
+                    if !kanji.kunyomi.isEmpty {
+                        Text("훈독: \(kanji.kunyomi.joined(separator: ", "))")
+                            .font(StyleConstants.Typography.koreanDynamic(.footnote))
+                            .foregroundColor(Color.purple)
+                            .multilineTextAlignment(.leading)
+                            .accessibilityLabel("훈독: \(kanji.kunyomi.joined(separator: ", "))")
+                    }
                 }
                 
                 Spacer()
@@ -123,19 +125,18 @@ struct FavoriteRowView: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
 }
 
-// MARK: - Favorite Card Detail View  
-struct FavoriteCardDetailView: View {
-    let phrase: JapanesePhrase
-    let allFavorites: [JapanesePhrase]
+// MARK: - Favorite Kanji Detail View  
+struct FavoriteKanjiDetailView: View {
+    let kanji: Kanji
+    let allFavorites: [Kanji]
     @Binding var isPresented: Bool
     @State private var currentIndex: Int = 0
     @Environment(\.colorScheme) private var colorScheme
     
-    init(phrase: JapanesePhrase, allFavorites: [JapanesePhrase], isPresented: Binding<Bool>) {
-        self.phrase = phrase
+    init(kanji: Kanji, allFavorites: [Kanji], isPresented: Binding<Bool>) {
+        self.kanji = kanji
         self.allFavorites = allFavorites
         self._isPresented = isPresented
         self._currentIndex = State(initialValue: 0)
@@ -146,16 +147,17 @@ struct FavoriteCardDetailView: View {
             VStack(spacing: 0) {
                 Spacer()
                 
-                // Card View
+                // Kanji Card View
                 if !allFavorites.isEmpty {
                     TabView(selection: $currentIndex) {
-                        ForEach(Array(allFavorites.enumerated()), id: \.offset) { index, favoritePhrase in
-                            CardView(phrase: favoritePhrase, isInModal: true)
+                        ForEach(Array(allFavorites.enumerated()), id: \.offset) { index, favoriteKanji in
+                            KanjiCardView(kanji: favoriteKanji)
                                 .tag(index)
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .frame(height: 590)
+                    .padding(.horizontal, 20)
                     .onChange(of: currentIndex) { oldValue, newValue in
                         TTSManager.shared.stop()
                         HapticManager.shared.impact(.light, intensity: 0.6)
@@ -169,7 +171,7 @@ struct FavoriteCardDetailView: View {
                     Text("\(currentIndex + 1) / \(allFavorites.count)")
                         .font(StyleConstants.Typography.caption)
                         .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        .accessibilityLabel("\(allFavorites.count)개 중 \(currentIndex + 1)번째 카드")
+                        .accessibilityLabel("\(allFavorites.count)개 중 \(currentIndex + 1)번째 한자")
                         .padding(.bottom, 30)
                 }
             }
@@ -180,7 +182,7 @@ struct FavoriteCardDetailView: View {
             TTSManager.shared.stop()
             // Set correct index when modal appears
             DispatchQueue.main.async {
-                if let index = allFavorites.firstIndex(where: { $0.id == phrase.id }) {
+                if let index = allFavorites.firstIndex(where: { $0.id == kanji.id }) {
                     currentIndex = index
                 }
             }
@@ -189,4 +191,4 @@ struct FavoriteCardDetailView: View {
             TTSManager.shared.stop()
         }
     }
-} 
+}

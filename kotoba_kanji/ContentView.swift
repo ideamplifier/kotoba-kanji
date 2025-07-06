@@ -17,5 +17,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: JapanesePhrase.self, inMemory: true)
+        .modelContainer(for: Kanji.self, inMemory: true)
 } 
