@@ -20,17 +20,18 @@ struct HomeView: View {
                 VStack {
                     if kanjiList.isEmpty {
                         CardPlaceholderView()
-                            .frame(height: 590)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.horizontal, 20)
                             .accessibilityLabel("한자가 없습니다")
                     } else {
                         TabView(selection: $currentKanjiIndex) {
                             ForEach(Array(kanjiList.enumerated()), id: \.offset) { index, kanji in
                                 KanjiCardView(kanji: kanji)
                                     .tag(index)
+                                    .padding(.horizontal, 20)
                             }
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
-                        .frame(height: 590)
                         .offset(x: autoSlideManager.shakeOffset)
                         .onChange(of: currentKanjiIndex) { oldValue, newValue in
                             if !autoSlideManager.isAutoSliding {
@@ -41,7 +42,8 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(.top, 30)
+                .frame(maxHeight: .infinity)
+                .padding(.vertical, 20)
                 
                 Spacer()
                 

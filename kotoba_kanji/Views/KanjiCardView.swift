@@ -17,14 +17,14 @@ struct KanjiCardView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 24)
                     .fill(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
-                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
                 
                 // Content
                 Group {
                     if !isFlipped {
-                        KanjiFrontView(kanji: kanji, geometry: geometry)
+                        KanjiFrontView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
                     } else {
                         KanjiBackView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
                     }
@@ -35,8 +35,8 @@ struct KanjiCardView: View {
                 )
                 .opacity(abs(rotation).truncatingRemainder(dividingBy: 180) < 90 ? 1 : 0)
             }
-            .frame(maxHeight: geometry.size.height * 0.8)
-            .padding(.vertical, 20)
+            .frame(width: geometry.size.width * 0.9, height: geometry.size.height * 0.85)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onTapGesture {
                 flipCard()
             }
@@ -55,6 +55,7 @@ struct KanjiCardView: View {
 // MARK: - Kanji Front View
 struct KanjiFrontView: View {
     let kanji: Kanji
+    let examples: [KanjiExample]
     let geometry: GeometryProxy
     @Environment(\.colorScheme) private var colorScheme
     @State private var isFavoriteAnimating = false
@@ -62,145 +63,101 @@ struct KanjiFrontView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with favorite button
+            // Header with card number and favorite button
             HStack {
+                Text("\(kanji.id)")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                
                 Spacer()
+                
                 Button(action: toggleFavorite) {
                     Image(systemName: kanji.isFavorite ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 24))
+                        .font(.system(size: 20))
                         .foregroundColor(kanji.isFavorite ? Color.yellow : StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
                         .scaleEffect(isFavoriteAnimating ? 1.2 : 1.0)
                 }
                 .accessibilityLabel(kanji.isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            // Main Kanji Character
-            Text(kanji.character)
-                .font(.system(size: min(geometry.size.width * 0.35, 120), weight: .regular))
-                .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                .padding(.top, 20)
-                .accessibilityLabel("한자: \(kanji.character)")
-            
-            // Meanings
-            VStack(spacing: 8) {
-                ForEach(kanji.meanings, id: \.self) { meaning in
-                    Text(meaning)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                }
-            }
-            .padding(.top, 20)
-            
-            // Readings
-            VStack(spacing: 16) {
-                // Onyomi
-                if !kanji.onyomi.isEmpty {
-                    VStack(spacing: 4) {
-                        Text("음독 (音読み)")
-                            .font(.system(size: 14))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        
-                        HStack(spacing: 12) {
-                            ForEach(kanji.onyomi, id: \.self) { reading in
-                                Button(action: {
-                                    TTSManager.shared.speak(reading)
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "speaker.wave.2")
-                                            .font(.system(size: 12))
-                                        Text(reading)
-                                            .font(.system(size: 16, weight: .medium))
-                                    }
-                                    .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme).opacity(0.1))
-                                    )
-                                }
-                                .accessibilityLabel("음독 \(reading) 듣기")
-                            }
-                        }
-                    }
-                }
-                
-                // Kunyomi
-                if !kanji.kunyomi.isEmpty {
-                    VStack(spacing: 4) {
-                        Text("훈독 (訓読み)")
-                            .font(.system(size: 14))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        
-                        HStack(spacing: 12) {
-                            ForEach(kanji.kunyomi, id: \.self) { reading in
-                                Button(action: {
-                                    TTSManager.shared.speak(reading)
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "speaker.wave.2")
-                                            .font(.system(size: 12))
-                                        Text(reading)
-                                            .font(.system(size: 16, weight: .medium))
-                                    }
-                                    .foregroundColor(Color.purple)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.purple.opacity(0.1))
-                                    )
-                                }
-                                .accessibilityLabel("훈독 \(reading) 듣기")
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.top, 20)
-            .padding(.horizontal, 20)
-            
-            // Info badges
-            HStack(spacing: 16) {
-                // Stroke count
-                HStack(spacing: 4) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 14))
-                    Text("\(kanji.strokeCount)획")
-                        .font(.system(size: 14))
-                }
-                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                
-                // JLPT Level
-                HStack(spacing: 4) {
-                    Image(systemName: "graduationcap")
-                        .font(.system(size: 14))
-                    Text("N\(kanji.jlptLevel)")
-                        .font(.system(size: 14))
-                }
-                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                
-                // Bushu
-                HStack(spacing: 4) {
-                    Text("부수:")
-                        .font(.system(size: 14))
-                    Text("\(kanji.bushu) (\(kanji.bushuMeaning))")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-            }
-            .padding(.top, 20)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
             
             Spacer()
             
-            // Flip hint
-            Text("탭하여 뒤집기")
-                .font(.system(size: 12))
-                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                .opacity(0.6)
-                .padding(.bottom, 20)
+            // Main Content
+            VStack(spacing: 16) {
+                // Main Kanji Character
+                Text(kanji.character)
+                    .font(.system(size: min(geometry.size.width * 0.3, 100), weight: .medium))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                    .accessibilityLabel("한자: \(kanji.character)")
+                
+                // Hiragana Reading
+                if let firstReading = kanji.kunyomi.first ?? kanji.onyomi.first {
+                    Text(firstReading)
+                        .font(.system(size: 20))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                }
+                
+                // Meanings with Korean
+                VStack(spacing: 12) {
+                    if let firstMeaning = kanji.meanings.first {
+                        Text(firstMeaning)
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                    }
+                    
+                    // Korean explanation or usage hint
+                    Text(kanji.mnemonic.prefix(50) + "...")
+                        .font(.system(size: 16))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 40)
+                }
+            }
+            
+            Spacer()
+            
+            // Bottom section with example sentence
+            VStack(alignment: .leading, spacing: 16) {
+                // Example sentence or additional info
+                if let firstExample = examples.first {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(firstExample.japanese)
+                            .font(.system(size: 15))
+                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                        
+                        Text(firstExample.korean)
+                            .font(.system(size: 14))
+                            .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                    }
+                    .padding(.horizontal, 24)
+                }
+                
+                // Play audio button
+                HStack {
+                    Button(action: {
+                        if let reading = kanji.kunyomi.first ?? kanji.onyomi.first {
+                            TTSManager.shared.speak(reading)
+                        }
+                    }) {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color.adaptive(light: .tabBarSelected.opacity(0.1), dark: .tabBarSelectedDark.opacity(0.1), for: colorScheme))
+                            )
+                    }
+                    .padding(.leading, 24)
+                    
+                    Spacer()
+                }
+            }
+            
+            .padding(.bottom, 24)
         }
     }
     
