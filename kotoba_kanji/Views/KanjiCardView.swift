@@ -17,9 +17,9 @@ struct KanjiCardView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(cornerRadius: 20)
                     .fill(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
-                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 5)
                 
                 // Content
                 Group {
@@ -35,7 +35,6 @@ struct KanjiCardView: View {
                 )
                 .opacity(abs(rotation).truncatingRemainder(dividingBy: 180) < 90 ? 1 : 0)
             }
-            .frame(width: geometry.size.width * 0.9, height: geometry.size.height * 0.85)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onTapGesture {
                 flipCard()
@@ -63,100 +62,96 @@ struct KanjiFrontView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with card number and favorite button
+            // Header with card number
             HStack {
-                Text("\(kanji.id)")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                
                 Spacer()
-                
-                Button(action: toggleFavorite) {
-                    Image(systemName: kanji.isFavorite ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 20))
-                        .foregroundColor(kanji.isFavorite ? Color.yellow : StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        .scaleEffect(isFavoriteAnimating ? 1.2 : 1.0)
-                }
-                .accessibilityLabel(kanji.isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가")
+                Text("\(kanji.id)")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme).opacity(0.5))
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
             
-            Spacer()
+            Spacer(minLength: 20)
             
             // Main Content
-            VStack(spacing: 16) {
-                // Main Kanji Character
-                Text(kanji.character)
-                    .font(.system(size: min(geometry.size.width * 0.3, 100), weight: .medium))
+            VStack(spacing: 20) {
+                // Japanese phrase or kanji usage
+                Text(kanji.meanings.first ?? kanji.character)
+                    .font(.system(size: 32, weight: .regular))
                     .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                    .accessibilityLabel("한자: \(kanji.character)")
+                    .multilineTextAlignment(.center)
                 
-                // Hiragana Reading
+                // Hiragana reading
                 if let firstReading = kanji.kunyomi.first ?? kanji.onyomi.first {
                     Text(firstReading)
-                        .font(.system(size: 20))
+                        .font(.system(size: 24))
                         .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
                 }
                 
-                // Meanings with Korean
+                Divider()
+                    .frame(width: 60)
+                    .padding(.vertical, 8)
+                
+                // Korean meaning/explanation
                 VStack(spacing: 12) {
-                    if let firstMeaning = kanji.meanings.first {
-                        Text(firstMeaning)
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                    }
+                    Text("실례하겠습니다. / 먼저 들어가 보겠습니다.")
+                        .font(.system(size: 18))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                        .multilineTextAlignment(.center)
                     
-                    // Korean explanation or usage hint
-                    Text(kanji.mnemonic.prefix(50) + "...")
+                    // Romaji
+                    Text("Shitsurei shimasu")
                         .font(.system(size: 16))
                         .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.horizontal, 40)
+                        .italic()
                 }
+                .padding(.horizontal, 32)
             }
+            
+            Spacer(minLength: 40)
+            
+            // Long explanation text
+            Text(kanji.mnemonic)
+                .font(.system(size: 15))
+                .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                .multilineTextAlignment(.center)
+                .lineSpacing(6)
+                .padding(.horizontal, 32)
+                .lineLimit(6)
             
             Spacer()
             
-            // Bottom section with example sentence
-            VStack(alignment: .leading, spacing: 16) {
-                // Example sentence or additional info
-                if let firstExample = examples.first {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(firstExample.japanese)
-                            .font(.system(size: 15))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                        
-                        Text(firstExample.korean)
-                            .font(.system(size: 14))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+            // Bottom buttons
+            HStack {
+                // Play audio button
+                Button(action: {
+                    if let reading = kanji.kunyomi.first ?? kanji.onyomi.first {
+                        TTSManager.shared.speak(reading)
                     }
-                    .padding(.horizontal, 24)
+                }) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(Color.adaptive(light: .tabBarSelected.opacity(0.1), dark: .tabBarSelectedDark.opacity(0.1), for: colorScheme))
+                        )
                 }
                 
-                // Play audio button
-                HStack {
-                    Button(action: {
-                        if let reading = kanji.kunyomi.first ?? kanji.onyomi.first {
-                            TTSManager.shared.speak(reading)
-                        }
-                    }) {
-                        Image(systemName: "speaker.wave.2.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(Color.adaptive(light: .tabBarSelected.opacity(0.1), dark: .tabBarSelectedDark.opacity(0.1), for: colorScheme))
-                            )
-                    }
-                    .padding(.leading, 24)
-                    
-                    Spacer()
+                Spacer()
+                
+                // Bookmark button
+                Button(action: toggleFavorite) {
+                    Image(systemName: kanji.isFavorite ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 22))
+                        .foregroundColor(kanji.isFavorite ? Color.yellow : StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                        .scaleEffect(isFavoriteAnimating ? 1.2 : 1.0)
+                        .frame(width: 44, height: 44)
                 }
             }
-            
+            .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
     }

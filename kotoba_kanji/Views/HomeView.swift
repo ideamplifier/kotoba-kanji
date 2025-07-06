@@ -14,38 +14,37 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Spacer()
-                
                 // Card Page View
-                VStack {
-                    if kanjiList.isEmpty {
-                        CardPlaceholderView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.horizontal, 20)
-                            .accessibilityLabel("한자가 없습니다")
-                    } else {
-                        TabView(selection: $currentKanjiIndex) {
-                            ForEach(Array(kanjiList.enumerated()), id: \.offset) { index, kanji in
-                                KanjiCardView(kanji: kanji)
-                                    .tag(index)
-                                    .padding(.horizontal, 20)
-                            }
-                        }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
-                        .offset(x: autoSlideManager.shakeOffset)
-                        .onChange(of: currentKanjiIndex) { oldValue, newValue in
-                            if !autoSlideManager.isAutoSliding {
-                                HapticManager.shared.impact(.light, intensity: 0.6)
-                            }
-                            // 마지막 카드 위치 저장
-                            saveLastCardIndex()
+                if kanjiList.isEmpty {
+                    CardPlaceholderView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 40)
+                        .accessibilityLabel("한자가 없습니다")
+                } else {
+                    TabView(selection: $currentKanjiIndex) {
+                        ForEach(Array(kanjiList.enumerated()), id: \.offset) { index, kanji in
+                            KanjiCardView(kanji: kanji)
+                                .tag(index)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 60)
                         }
                     }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .offset(x: autoSlideManager.shakeOffset)
+                    .onChange(of: currentKanjiIndex) { oldValue, newValue in
+                        if !autoSlideManager.isAutoSliding {
+                            HapticManager.shared.impact(.light, intensity: 0.6)
+                        }
+                        // 마지막 카드 위치 저장
+                        saveLastCardIndex()
+                    }
                 }
-                .frame(maxHeight: .infinity)
-                .padding(.vertical, 20)
                 
-                Spacer()
+                // Banner Ad
+                BannerAdView()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
                 
                 // Bottom Controls (스크린샷과 동일한 스타일)
                 VStack(spacing: 20) {
@@ -99,7 +98,7 @@ struct HomeView: View {
                         })
                     }
                 }
-                .padding(.bottom, 45)
+                .padding(.bottom, 20)
                 .padding(.horizontal)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
