@@ -99,6 +99,69 @@ struct SettingsView: View {
                 .padding(.bottom, 20)
                 
                 Spacer()
+                
+                // Other Apps Section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("다른 앱")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                        .padding(.horizontal, 20)
+                    
+                    // KOTOBA-KAIWA App
+                    Button(action: {
+                        if let url = URL(string: "https://apps.apple.com/us/app/%EC%BD%94%ED%86%A0%EB%B0%94-kaiwa/id6747955777?l=ko") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack(spacing: 16) {
+                            // App Icon
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(LinearGradient(
+                                    colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    Text("코토바")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+                            
+                            // App Info
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("코토바-KAIWA")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                                
+                                Text("일본어 회화 학습 앱")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                                
+                                Text("실전 회화 표현을 쉽고 재미있게!")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                                    .lineLimit(1)
+                            }
+                            
+                            Spacer()
+                            
+                            // Arrow
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding(.bottom, 40)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
