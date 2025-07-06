@@ -21,19 +21,21 @@ struct KanjiCardView: View {
                     .fill(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
                     .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 5)
                 
-                // Content
-                Group {
-                    if !isFlipped {
-                        KanjiFrontView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
-                    } else {
-                        KanjiBackView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
-                    }
-                }
-                .rotation3DEffect(
-                    Angle(degrees: rotation),
-                    axis: (x: 0, y: 1, z: 0)
-                )
-                .opacity(abs(rotation).truncatingRemainder(dividingBy: 180) < 90 ? 1 : 0)
+                // Front side
+                KanjiFrontView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
+                    .opacity(rotation.truncatingRemainder(dividingBy: 360) < 90 || rotation.truncatingRemainder(dividingBy: 360) > 270 ? 1 : 0)
+                    .rotation3DEffect(
+                        Angle(degrees: rotation),
+                        axis: (x: 0, y: 1, z: 0)
+                    )
+                
+                // Back side
+                KanjiBackView(kanji: kanji, examples: kanjiExamples, geometry: geometry)
+                    .opacity(rotation.truncatingRemainder(dividingBy: 360) > 90 && rotation.truncatingRemainder(dividingBy: 360) < 270 ? 1 : 0)
+                    .rotation3DEffect(
+                        Angle(degrees: rotation + 180),
+                        axis: (x: 0, y: 1, z: 0)
+                    )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onTapGesture {
