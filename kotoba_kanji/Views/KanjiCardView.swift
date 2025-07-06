@@ -109,10 +109,19 @@ struct KanjiFrontView: View {
                             .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
                             .frame(width: 50, alignment: .leading)
                         
-                        Text(kanji.onyomi.joined(separator: ", "))
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            ForEach(kanji.onyomi, id: \.self) { reading in
+                                Text(reading)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                                    .underline()
+                                    .onTapGesture {
+                                        TTSManager.shared.speak(reading)
+                                        HapticManager.shared.impact(.light)
+                                    }
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 
@@ -124,10 +133,19 @@ struct KanjiFrontView: View {
                             .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
                             .frame(width: 50, alignment: .leading)
                         
-                        Text(kanji.kunyomi.joined(separator: ", "))
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            ForEach(kanji.kunyomi, id: \.self) { reading in
+                                Text(reading)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .foregroundColor(Color.purple)
+                                    .underline()
+                                    .onTapGesture {
+                                        TTSManager.shared.speak(reading)
+                                        HapticManager.shared.impact(.light)
+                                    }
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 
@@ -163,22 +181,12 @@ struct KanjiFrontView: View {
             
             Spacer()
             
-            // Play audio button
-            Button(action: {
-                if let reading = kanji.onyomi.first ?? kanji.kunyomi.first {
-                    TTSManager.shared.speak(reading)
-                }
-            }) {
-                Image(systemName: "speaker.wave.2.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
-                    .frame(width: 44, height: 44)
-                    .background(
-                        Circle()
-                            .fill(Color.adaptive(light: .tabBarSelected.opacity(0.1), dark: .tabBarSelectedDark.opacity(0.1), for: colorScheme))
-                    )
-            }
-            .padding(.bottom, 24)
+            // 탭 안내
+            Text("음독/훈독을 탭하면 발음을 들을 수 있습니다")
+                .font(.system(size: 12))
+                .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                .opacity(0.6)
+                .padding(.bottom, 24)
         }
     }
     
