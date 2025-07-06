@@ -84,70 +84,82 @@ struct KanjiFrontView: View {
             
             Spacer(minLength: 30)
             
-            // Main Kanji Character - 크게 표시
+            // Main Kanji Character - 10% 작게
             Text(kanji.character)
-                .font(.system(size: min(geometry.size.width * 0.35, 140), weight: .medium))
+                .font(.system(size: min(geometry.size.width * 0.32, 126), weight: .medium))
                 .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
             
             // Korean meaning
             if let firstMeaning = kanji.meanings.first {
                 Text("(\(firstMeaning))")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(.system(size: 22, weight: .regular))
                     .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                    .padding(.top, 16)
+                    .padding(.top, 12)
             }
             
-            Spacer(minLength: 40)
+            Spacer(minLength: 30)
             
-            // Readings Section
-            VStack(spacing: 20) {
+            // Readings and Info Section - 공간 효율적으로
+            VStack(alignment: .leading, spacing: 16) {
                 // 음독 (音読み)
                 if !kanji.onyomi.isEmpty {
-                    VStack(spacing: 8) {
-                        Text("음독 (音読み)")
-                            .font(.system(size: 14, weight: .medium))
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("음독:")
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                            .frame(width: 50, alignment: .leading)
                         
                         Text(kanji.onyomi.joined(separator: ", "))
-                            .font(.system(size: 18, weight: .regular))
+                            .font(.system(size: 17, weight: .regular))
                             .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 
                 // 훈독 (訓読み)
                 if !kanji.kunyomi.isEmpty {
-                    VStack(spacing: 8) {
-                        Text("훈독 (訓読み)")
-                            .font(.system(size: 14, weight: .medium))
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("훈독:")
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                            .frame(width: 50, alignment: .leading)
                         
                         Text(kanji.kunyomi.joined(separator: ", "))
-                            .font(.system(size: 18, weight: .regular))
+                            .font(.system(size: 17, weight: .regular))
                             .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                
+                // 부수 정보
+                HStack(alignment: .top, spacing: 12) {
+                    Text("부수:")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                        .frame(width: 50, alignment: .leading)
+                    
+                    Text("\(kanji.bushu) (\(kanji.bushuMeaning))")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                }
             }
+            .padding(.horizontal, 40)
             
-            Spacer(minLength: 30)
-            
-            // 부수 정보
-            HStack(spacing: 8) {
-                Text("부수:")
-                    .font(.system(size: 14))
-                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                Text("\(kanji.bushu) (\(kanji.bushuMeaning))")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-            }
+            Spacer(minLength: 20)
             
             // 이미지 기억법
-            Text(kanji.mnemonic)
-                .font(.system(size: 14))
-                .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.horizontal, 32)
-                .padding(.top, 16)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("기억법:")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
+                
+                Text(kanji.mnemonic)
+                    .font(.system(size: 15))
+                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 40)
             
             Spacer()
             
@@ -227,7 +239,7 @@ struct KanjiBackView: View {
             
             ScrollView {
                 VStack(spacing: 24) {
-                    ForEach(Array(kanjiExamples.enumerated()), id: \.offset) { index, example in
+                    ForEach(Array(examples.enumerated()), id: \.offset) { index, example in
                         VStack(alignment: .leading, spacing: 12) {
                             // Example number
                             Text("\(index + 1).")
