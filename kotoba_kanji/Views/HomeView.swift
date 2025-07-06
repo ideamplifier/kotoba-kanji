@@ -5,81 +5,208 @@ import SwiftData
 struct HomeView: View {
     @Query private var kanjiList: [Kanji]
     @State private var currentKanjiIndex = 0
-    @State private var navigateToKanji: Int?
     @State private var isRandomMode = false
+    @StateObject private var autoSlideManager = AutoSlideManager()
     @AppStorage("lastViewedKanjiIndex") private var lastViewedKanjiIndex = 0
     @AppStorage("isKanjiRandomMode") private var savedRandomMode = false
     @Environment(\.colorScheme) private var colorScheme
     
-    private let autoSlideManager = AutoSlideManager()
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Spacer()
+                
+                // Card Page View
+                VStack {
+                    if kanjiList.isEmpty {
+                        CardPlaceholderView()
+                            .frame(height: 590)
+                            .accessibilityLabel("한자가 없습니다")
+                    } else {
+                        TabView(selection: $currentKanjiIndex) {
+                            ForEach(Array(kanjiList.enumerated()), id: \.offset) { index, kanji in
+                                KanjiCardView(kanji: kanji)
+                                    .tag(index)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .frame(height: 590)
+                        .offset(x: autoSlideManager.shakeOffset)
+                        .onChange(of: currentKanjiIndex) { oldValue, newValue in
+                            if !autoSlideManager.isAutoSliding {
+                                HapticManager.shared.impact(.light, intensity: 0.6)
+                            }
+                            // 마지막 카드 위치 저장
+                            saveLastCardIndex()
+                        }
+                    }
+                }
+                .padding(.top, 30)
+                
+                Spacer()
+                
+                // Bottom Controls (스크린샷과 동일한 스타일)
+                VStack(spacing: 20) {
+                    HStack(spacing: 15) {
+                        // Previous Button
+                        Button(action: previousKanji) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(Color.adaptive(light: .tabBarSelected.opacity(0.6), dark: .tabBarSelectedDark.opacity(0.6), for: colorScheme))
+                                .frame(width: 44, height: 44)
+                        }
+                        .offset(x: 10)
+                        .accessibilityLabel("이전 카드")
+                        .accessibilityHint("이전 한자로 이동")
+                        .scaleEffect(autoSlideManager.isAutoSliding ? 0.95 : 1.0)
+                        .onLongPressGesture(minimumDuration: 0.5, perform: {}, onPressingChanged: { pressing in
+                            if pressing {
+                                startAutoSlide(direction: .previous)
+                            } else {
+                                autoSlideManager.stopAutoSlide()
+                            }
+                        })
+                        
+                        // View Mode Toggle (순서대로)
+                        Button(action: toggleViewMode) {
+                            Text("순서대로")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
+                                .frame(width: 80)
+                        }
+                        .accessibilityLabel("보기 모드: 순서대로")
+                        .accessibilityHint("탭하여 보기 모드 전환")
+                        
+                        // Next Button  
+                        Button(action: nextKanji) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(Color.adaptive(light: .tabBarSelected.opacity(0.6), dark: .tabBarSelectedDark.opacity(0.6), for: colorScheme))
+                                .frame(width: 44, height: 44)
+                        }
+                        .offset(x: -10)
+                        .accessibilityLabel("다음 카드")
+                        .accessibilityHint("다음 한자로 이동")
+                        .scaleEffect(autoSlideManager.isAutoSliding ? 0.95 : 1.0)
+                        .onLongPressGesture(minimumDuration: 0.5, perform: {}, onPressingChanged: { pressing in
+                            if pressing {
+                                startAutoSlide(direction: .next)
+                            } else {
+                                autoSlideManager.stopAutoSlide()
+                            }
+                        })
+                    }
+                }
+                .padding(.bottom, 45)
+                .padding(.horizontal)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
+        }
+        .onAppear {
+            loadLastCardIndex()
+        }
+        .onDisappear {
+            autoSlideManager.stopAutoSlide()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ScrollToKanji"))) { notification in
+            if let kanjiId = notification.userInfo?["kanjiId"] as? Int {
+                // Switch to sequential mode if in random mode
+                if isRandomMode {
+                    isRandomMode = false
+                }
+                
+                // Find the index of the kanji
+                if let index = kanjiList.firstIndex(where: { $0.id == kanjiId }) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        currentKanjiIndex = index
+                    }
+                    
+                    // Save the position
+                    saveLastCardIndex()
+                    
+                    // Haptic feedback
+                    HapticManager.shared.impact(.medium, intensity: 0.8)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private Methods
+    private func nextKanji() {
+        guard currentKanjiIndex < kanjiList.count - 1 else { 
+            if !autoSlideManager.isAutoSliding {
+                autoSlideManager.shakeCard()
+            }
+            return 
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            currentKanjiIndex += 1
+        }
+    }
+    
+    private func previousKanji() {
+        guard currentKanjiIndex > 0 else { 
+            if !autoSlideManager.isAutoSliding {
+                autoSlideManager.shakeCard()
+            }
+            return 
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            currentKanjiIndex -= 1
+        }
+    }
+    
+    private func startAutoSlide(direction: AutoSlideManager.SlideDirection) {
+        autoSlideManager.startAutoSlide(
+            direction: direction,
+            currentIndex: currentKanjiIndex,
+            maxIndex: kanjiList.count - 1
+        ) { slideDirection in
+            switch slideDirection {
+            case .next:
+                nextKanji()
+            case .previous:
+                previousKanji()
+            }
+        }
+    }
+    
+    private func toggleViewMode() {
+        isRandomMode.toggle()
+        HapticManager.shared.impact(.light, intensity: 0.6)
+        savedRandomMode = isRandomMode
+    }
+    
+    // MARK: - Session Management
+    private func loadLastCardIndex() {
+        // 저장된 모드 불러오기
+        isRandomMode = savedRandomMode
+        
+        // 저장된 카드 인덱스 불러오기 (순서대로 모드에서만)
+        if !isRandomMode {
+            let savedIndex = lastViewedKanjiIndex
+            if savedIndex > 0 && savedIndex < kanjiList.count {
+                currentKanjiIndex = savedIndex
+            } else {
+                currentKanjiIndex = 0
+            }
+        } else {
+            currentKanjiIndex = 0
+        }
+    }
+    
+    private func saveLastCardIndex() {
+        // 마지막 카드 위치 저장
+        lastViewedKanjiIndex = currentKanjiIndex
+    }
+}
+
+// MARK: - Card Placeholder View
+struct CardPlaceholderView: View {
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header
-                headerView
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 10)
-                
-                // Content
-                if kanjiList.isEmpty {
-                    emptyStateView
-                } else {
-                    kanjiContentView
-                }
-            }
-            .background(StyleConstants.Colors.adaptiveAppBackground(colorScheme))
-            .navigationBarHidden(true)
-            .onAppear {
-                loadSettings()
-            }
-            .onDisappear {
-                saveSettings()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ScrollToKanji"))) { notification in
-                if let kanjiId = notification.userInfo?["kanjiId"] as? Int {
-                    scrollToKanji(kanjiId)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Header View
-    private var headerView: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("한자 학습")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(StyleConstants.Colors.adaptiveTextPrimary(colorScheme))
-                
-                if !kanjiList.isEmpty {
-                    Text("\(currentKanjiIndex + 1) / \(kanjiList.count)")
-                        .font(.system(size: 14))
-                        .foregroundColor(StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                }
-            }
-            
-            Spacer()
-            
-            // Shuffle Button
-            Button(action: toggleRandomMode) {
-                Image(systemName: isRandomMode ? "shuffle.circle.fill" : "shuffle.circle")
-                    .font(.system(size: 24))
-                    .foregroundColor(Color.adaptive(light: .tabBarSelected, dark: .tabBarSelectedDark, for: colorScheme))
-                    .animation(.easeInOut(duration: 0.2), value: isRandomMode)
-            }
-            .accessibilityLabel(isRandomMode ? "랜덤 모드 켜짐" : "랜덤 모드 꺼짐")
-            .accessibilityHint("탭하여 랜덤 모드 전환")
-        }
-        .frame(height: 44)
-        .padding(.top, UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }?.safeAreaInsets.top ?? 0)
-    }
-    
-    // MARK: - Empty State View
-    private var emptyStateView: some View {
         VStack(spacing: 20) {
             Image(systemName: "character.textbox")
                 .font(.system(size: 80))
@@ -96,193 +223,10 @@ struct HomeView: View {
                 .opacity(0.8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Kanji Content View
-    private var kanjiContentView: some View {
-        VStack(spacing: 0) {
-            // Kanji Cards
-            GeometryReader { geometry in
-                ScrollViewReader { scrollProxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 0) {
-                            ForEach(Array(kanjiList.enumerated()), id: \.element.id) { index, kanji in
-                                KanjiCardView(kanji: kanji)
-                                    .frame(width: geometry.size.width)
-                                    .id(index)
-                            }
-                        }
-                    }
-                    .scrollDisabled(true)
-                    .onChange(of: currentKanjiIndex) { oldValue, newValue in
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            scrollProxy.scrollTo(newValue, anchor: .center)
-                        }
-                    }
-                    .onChange(of: navigateToKanji) { oldValue, newValue in
-                        if let kanjiId = newValue,
-                           let index = kanjiList.firstIndex(where: { $0.id == kanjiId }) {
-                            currentKanjiIndex = index
-                            navigateToKanji = nil
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            
-            // Navigation Controls
-            navigationControls
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 30)
-        }
-    }
-    
-    // MARK: - Navigation Controls
-    private var navigationControls: some View {
-        HStack(spacing: 30) {
-            // Previous Button
-            Button(action: previousKanji) {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("이전")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundColor(currentKanjiIndex > 0 ? StyleConstants.Colors.adaptiveTextPrimary(colorScheme) : StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                .frame(width: 100, height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(StyleConstants.Colors.adaptiveButtonBackground(colorScheme))
-                )
-                .opacity(currentKanjiIndex > 0 ? 1.0 : 0.5)
-            }
-            .disabled(currentKanjiIndex == 0)
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.5)
-                    .onEnded { _ in
-                        autoSlideManager.startAutoSlide(
-                            direction: .previous,
-                            currentIndex: currentKanjiIndex,
-                            maxIndex: kanjiList.count - 1
-                        ) { slideDirection in
-                            switch slideDirection {
-                            case .previous:
-                                previousKanji()
-                            case .next:
-                                break
-                            }
-                        }
-                    }
-            )
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onEnded { _ in
-                        autoSlideManager.stopAutoSlide()
-                    }
-            )
-            
-            Spacer()
-            
-            // Next Button
-            Button(action: nextKanji) {
-                HStack(spacing: 8) {
-                    Text("다음")
-                        .font(.system(size: 16, weight: .semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundColor(currentKanjiIndex < kanjiList.count - 1 ? StyleConstants.Colors.adaptiveTextPrimary(colorScheme) : StyleConstants.Colors.adaptiveTextSecondary(colorScheme))
-                .frame(width: 100, height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(StyleConstants.Colors.adaptiveButtonBackground(colorScheme))
-                )
-                .opacity(currentKanjiIndex < kanjiList.count - 1 ? 1.0 : 0.5)
-            }
-            .disabled(currentKanjiIndex == kanjiList.count - 1)
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.5)
-                    .onEnded { _ in
-                        autoSlideManager.startAutoSlide(
-                            direction: .next,
-                            currentIndex: currentKanjiIndex,
-                            maxIndex: kanjiList.count - 1
-                        ) { slideDirection in
-                            switch slideDirection {
-                            case .next:
-                                nextKanji()
-                            case .previous:
-                                break
-                            }
-                        }
-                    }
-            )
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onEnded { _ in
-                        autoSlideManager.stopAutoSlide()
-                    }
-            )
-        }
-    }
-    
-    // MARK: - Helper Methods
-    private func previousKanji() {
-        HapticManager.shared.impact(.light, intensity: 0.6)
-        if isRandomMode {
-            var newIndex: Int
-            repeat {
-                newIndex = Int.random(in: 0..<kanjiList.count)
-            } while newIndex == currentKanjiIndex && kanjiList.count > 1
-            currentKanjiIndex = newIndex
-        } else if currentKanjiIndex > 0 {
-            currentKanjiIndex -= 1
-        }
-    }
-    
-    private func nextKanji() {
-        HapticManager.shared.impact(.light, intensity: 0.6)
-        if isRandomMode {
-            var newIndex: Int
-            repeat {
-                newIndex = Int.random(in: 0..<kanjiList.count)
-            } while newIndex == currentKanjiIndex && kanjiList.count > 1
-            currentKanjiIndex = newIndex
-        } else if currentKanjiIndex < kanjiList.count - 1 {
-            currentKanjiIndex += 1
-        }
-    }
-    
-    private func toggleRandomMode() {
-        isRandomMode.toggle()
-        HapticManager.shared.impact(.medium, intensity: 0.7)
-        savedRandomMode = isRandomMode
-    }
-    
-    private func scrollToKanji(_ kanjiId: Int) {
-        if let index = kanjiList.firstIndex(where: { $0.id == kanjiId }) {
-            currentKanjiIndex = index
-            HapticManager.shared.notification(.success)
-        }
-    }
-    
-    // MARK: - Settings Management
-    private func loadSettings() {
-        isRandomMode = savedRandomMode
-        
-        if !isRandomMode {
-            let savedIndex = lastViewedKanjiIndex
-            if savedIndex >= 0 && savedIndex < kanjiList.count {
-                currentKanjiIndex = savedIndex
-            }
-        }
-    }
-    
-    private func saveSettings() {
-        savedRandomMode = isRandomMode
-        if !isRandomMode {
-            lastViewedKanjiIndex = currentKanjiIndex
-        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(StyleConstants.Colors.adaptiveCardBackground(colorScheme))
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
     }
 }
